@@ -2,8 +2,13 @@
   <div class="editor-container">
     <div class="editor-header">
       <div class="editor-title">
-        <input type="text" placeholder="Untitled Pen" class="title-input" />
-        <button class="save-btn">Save</button>
+        <input
+          type="text"
+          placeholder="Untitled Pen"
+          class="title-input"
+          v-model="penTitle"
+        />
+        <button class="save-btn" @click="updatePreview">Run</button>
       </div>
       <div class="editor-actions">
         <button class="action-btn">
@@ -31,15 +36,7 @@
               <button class="panel-btn">🔽</button>
             </div>
           </div>
-          <div class="panel-editor">
-            <pre class="code-mirror-mock">
-<span class="cm-tag">&lt;div</span> <span class="cm-attribute">class</span>=<span class="cm-string">"container"</span><span class="cm-tag">&gt;</span>
-  <span class="cm-tag">&lt;h1&gt;</span>Hello, CodePen!<span class="cm-tag">&lt;/h1&gt;</span>
-  <span class="cm-tag">&lt;p&gt;</span>This is a sample pen.<span class="cm-tag">&lt;/p&gt;</span>
-  <span class="cm-tag">&lt;button</span> <span class="cm-attribute">id</span>=<span class="cm-string">"demo-button"</span><span class="cm-tag">&gt;</span>Click me<span class="cm-tag">&lt;/button&gt;</span>
-<span class="cm-tag">&lt;/div&gt;</span>
-            </pre>
-          </div>
+          <div class="panel-editor" ref="htmlEditorContainer"></div>
         </div>
 
         <div class="code-panel css-panel">
@@ -50,31 +47,7 @@
               <button class="panel-btn">🔽</button>
             </div>
           </div>
-          <div class="panel-editor">
-            <pre class="code-mirror-mock">
-<span class="cm-selector">.container</span> {
-  <span class="cm-property">max-width</span>: <span class="cm-number">600px</span>;
-  <span class="cm-property">margin</span>: <span class="cm-number">0</span> <span class="cm-atom">auto</span>;
-  <span class="cm-property">padding</span>: <span class="cm-number">20px</span>;
-  <span class="cm-property">text-align</span>: <span class="cm-atom">center</span>;
-  <span class="cm-property">font-family</span>: <span class="cm-string">'Arial'</span>, <span class="cm-atom">sans-serif</span>;
-}
-
-<span class="cm-selector">h1</span> {
-  <span class="cm-property">color</span>: <span class="cm-atom">#47cf73</span>;
-}
-
-<span class="cm-selector">button</span> {
-  <span class="cm-property">background</span>: <span class="cm-atom">#47cf73</span>;
-  <span class="cm-property">color</span>: <span class="cm-atom">white</span>;
-  <span class="cm-property">border</span>: <span class="cm-atom">none</span>;
-  <span class="cm-property">padding</span>: <span class="cm-number">10px</span> <span class="cm-number">20px</span>;
-  <span class="cm-property">border-radius</span>: <span class="cm-number">4px</span>;
-  <span class="cm-property">cursor</span>: <span class="cm-atom">pointer</span>;
-  <span class="cm-property">margin-top</span>: <span class="cm-number">20px</span>;
-}
-            </pre>
-          </div>
+          <div class="panel-editor" ref="cssEditorContainer"></div>
         </div>
 
         <div class="code-panel js-panel">
@@ -85,17 +58,7 @@
               <button class="panel-btn">🔽</button>
             </div>
           </div>
-          <div class="panel-editor">
-            <pre class="code-mirror-mock">
-<span class="cm-keyword">const</span> <span class="cm-def">button</span> <span class="cm-operator">=</span> <span class="cm-variable">document</span>.<span class="cm-property">getElementById</span>(<span class="cm-string">'demo-button'</span>);
-
-<span class="cm-variable">button</span>.<span class="cm-property">addEventListener</span>(<span class="cm-string">'click'</span>, () <span class="cm-operator">=></span> {
-  <span class="cm-variable">alert</span>(<span class="cm-string">'Button clicked!'</span>);
-  <span class="cm-variable">button</span>.<span class="cm-property">textContent</span> <span class="cm-operator">=</span> <span class="cm-string">'Clicked!'</span>;
-  <span class="cm-variable">button</span>.<span class="cm-property">style</span>.<span class="cm-property">backgroundColor</span> <span class="cm-operator">=</span> <span class="cm-string">'#3db863'</span>;
-});
-            </pre>
-          </div>
+          <div class="panel-editor" ref="jsEditorContainer"></div>
         </div>
       </div>
 
@@ -103,20 +66,13 @@
         <div class="panel-header">
           <div class="panel-title">Result</div>
           <div class="panel-actions">
-            <button class="panel-btn">🔄</button>
+            <button class="panel-btn" @click="updatePreview">🔄</button>
             <button class="panel-btn">📱</button>
             <button class="panel-btn">⚙️</button>
           </div>
         </div>
         <div class="preview-content">
-          <iframe class="preview-iframe"></iframe>
-          <div class="preview-placeholder">
-            <div class="container">
-              <h1>Hello, CodePen!</h1>
-              <p>This is a sample pen.</p>
-              <button id="demo-button">Click me</button>
-            </div>
-          </div>
+          <iframe class="preview-iframe" ref="previewFrame"></iframe>
         </div>
       </div>
     </div>
@@ -124,7 +80,152 @@
 </template>
 
 <script setup>
-// Editor component logic can go here
+import { ref, onMounted, onUnmounted } from "vue";
+import { EditorState } from "@codemirror/basic-setup";
+import { EditorView, keymap } from "@codemirror/view";
+import { defaultKeymap } from "@codemirror/commands";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { javascript } from "@codemirror/lang-javascript";
+
+// 初始代碼
+const initialHtml = `<div class="container">
+  <h1>Hello, CodePen!</h1>
+  <p>This is a sample pen.</p>
+  <button id="demo-button">Click me</button>
+</div>`;
+
+const initialCss = `.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+  font-family: 'Arial', sans-serif;
+}
+
+h1 {
+  color: #47cf73;
+}
+
+button {
+  background: #47cf73;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 20px;
+}`;
+
+const initialJs = `const button = document.getElementById('demo-button');
+
+button.addEventListener('click', () => {
+  alert('Button clicked!');
+  button.textContent = 'Clicked!';
+  button.style.backgroundColor = '#3db863';
+});`;
+
+// 編輯器引用
+const htmlEditorContainer = ref(null);
+const cssEditorContainer = ref(null);
+const jsEditorContainer = ref(null);
+const previewFrame = ref(null);
+const penTitle = ref("Untitled Pen");
+
+// 編輯器實例
+let htmlEditor = null;
+let cssEditor = null;
+let jsEditor = null;
+
+// 創建編輯器
+function createEditor(container, language, initialValue) {
+  const languageSupport =
+    language === "html" ? html() : language === "css" ? css() : javascript();
+
+  const state = EditorState.create({
+    doc: initialValue,
+    extensions: [
+      keymap.of(defaultKeymap),
+      languageSupport,
+      EditorView.contentAttributes.of({ contenteditable: "true" }),
+      EditorView.lineWrapping,
+      EditorView.theme({
+        "&": {
+          backgroundColor: "#1d1e22",
+          color: "#f8f8f2",
+          height: "100%",
+        },
+        ".cm-content": {
+          caretColor: "#f8f8f2",
+          padding: "10px",
+        },
+        "&.cm-focused .cm-cursor": {
+          borderLeftColor: "#f8f8f2",
+        },
+        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection":
+          {
+            backgroundColor: "#44475a",
+          },
+        ".cm-gutters": {
+          backgroundColor: "#1d1e22",
+          color: "#6D8A88",
+          border: "none",
+        },
+      }),
+    ],
+  });
+
+  return new EditorView({
+    state,
+    parent: container,
+  });
+}
+
+// 更新預覽
+function updatePreview() {
+  console.log("Updating preview");
+  if (!previewFrame.value || !htmlEditor || !cssEditor || !jsEditor) {
+    console.log("Missing required elements for preview");
+    return;
+  }
+
+  try {
+    const htmlContent = htmlEditor.state.doc.toString();
+    const cssContent = cssEditor.state.doc.toString();
+    const jsContent = jsEditor.state.doc.toString();
+
+    const iframe = previewFrame.value;
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(previewContent);
+    iframeDoc.close();
+  } catch (error) {
+    console.error("Error updating preview:", error);
+  }
+}
+
+// 生命週期鉤子
+onMounted(() => {
+  console.log("Component mounted");
+  try {
+    // 創建編輯器
+    console.log("Creating editors");
+    htmlEditor = createEditor(htmlEditorContainer.value, "html", initialHtml);
+    cssEditor = createEditor(cssEditorContainer.value, "css", initialCss);
+    jsEditor = createEditor(jsEditorContainer.value, "javascript", initialJs);
+
+    console.log("Editors created:", htmlEditor, cssEditor, jsEditor);
+  } catch (error) {
+    console.error("Error creating editors:", error);
+  }
+});
+
+onUnmounted(() => {
+  // 清理編輯器
+  if (htmlEditor) htmlEditor.destroy();
+  if (cssEditor) cssEditor.destroy();
+  if (jsEditor) jsEditor.destroy();
+});
 </script>
 
 <style scoped>
@@ -267,30 +368,7 @@
   flex: 1;
   overflow: auto;
   background-color: #1d1e22;
-  padding: 10px;
-  font-family: 'Consolas', 'Monaco', 'Andale Mono', monospace;
-  font-size: 14px;
-  line-height: 1.5;
 }
-
-.code-mirror-mock {
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-/* Syntax highlighting */
-.cm-tag { color: #f92672; }
-.cm-attribute { color: #a6e22e; }
-.cm-string { color: #e6db74; }
-.cm-selector { color: #a6e22e; }
-.cm-property { color: #66d9ef; }
-.cm-number { color: #ae81ff; }
-.cm-atom { color: #ae81ff; }
-.cm-keyword { color: #f92672; }
-.cm-def { color: #fd971f; }
-.cm-variable { color: #f8f8f2; }
-.cm-operator { color: #f92672; }
-.cm-comment { color: #75715e; }
 
 .preview-panel {
   flex: 1;
@@ -315,39 +393,5 @@
   width: 100%;
   height: 100%;
   border: none;
-}
-
-.preview-placeholder {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: white;
-  color: black;
-  overflow: auto;
-}
-
-/* Preview content styling */
-.preview-placeholder .container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  text-align: center;
-  font-family: 'Arial', sans-serif;
-}
-
-.preview-placeholder h1 {
-  color: #47cf73;
-}
-
-.preview-placeholder button {
-  background: #47cf73;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 20px;
 }
 </style>
